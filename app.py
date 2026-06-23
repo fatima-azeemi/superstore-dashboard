@@ -4,31 +4,39 @@ import numpy as np
 import joblib
 import plotly.express as px
 
-# Page config
+# ---------------------------
+# PAGE CONFIG
+# ---------------------------
 st.set_page_config(
     page_title="Superstore Sales Intelligence System",
     layout="wide"
 )
 
-# Load data
+# ---------------------------
+# LOAD DATA
+# ---------------------------
 df = pd.read_csv("Superstore.csv", encoding="latin1")
 
 # ---------------------------
-# Feature Engineering
+# FEATURE ENGINEERING
 # ---------------------------
-df["Order Date"] = pd.to_datetime(df["Order Date"])
+df["Order Date"] = pd.to_datetime(df["Order Date"], errors="coerce")
+df["Ship Date"] = pd.to_datetime(df["Ship Date"], errors="coerce")
+
 df["Month"] = df["Order Date"].dt.month
 df["Year"] = df["Order Date"].dt.year
 
+df = df.dropna(subset=["Month", "Year", "Profit", "Sales"])
+
 # ---------------------------
-# Title
+# TITLE
 # ---------------------------
 st.title("Superstore Sales Intelligence System")
-st.title("Fatima Azeemi")
+st.subheader("Fatima Azeemi")
 st.markdown("---")
 
 # ---------------------------
-# KPIs
+# KPI CARDS
 # ---------------------------
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
@@ -45,7 +53,7 @@ col4.metric("Total Customers", total_customers)
 st.markdown("---")
 
 # ---------------------------
-# Filters
+# FILTERS
 # ---------------------------
 st.sidebar.header("Filters")
 
@@ -59,8 +67,12 @@ filtered_df = df[
     (df["Segment"].isin(segment))
 ]
 
+if filtered_df.empty:
+    st.warning("No data available for selected filters")
+    st.stop()
+
 # ---------------------------
-# Monthly Sales Trend (Plotly)
+# MONTHLY SALES
 # ---------------------------
 st.subheader("Monthly Sales Trend")
 
@@ -70,7 +82,17 @@ fig = px.line(monthly, x="Month", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Category Profit
+# YEARLY SALES (FIX ADDED)
+# ---------------------------
+st.subheader("Yearly Sales Performance")
+
+yearly = filtered_df.groupby("Year")["Sales"].sum().reset_index()
+
+fig = px.bar(yearly, x="Year", y="Sales", color="Sales")
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------
+# CATEGORY PROFIT
 # ---------------------------
 st.subheader("Category Wise Profit")
 
@@ -80,7 +102,7 @@ fig = px.bar(cat_profit, x="Category", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Top Products
+# TOP PRODUCTS SALES
 # ---------------------------
 st.subheader("Top 10 Products by Sales")
 
@@ -96,7 +118,33 @@ fig = px.bar(top_products, x="Sales", y="Product Name", orientation="h")
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Discount vs Profit
+# TOP PRODUCTS PROFIT (FIXED MISSING PART)
+# ---------------------------
+st.subheader("Top 10 Products by Profit")
+
+top_profit = (
+    filtered_df.groupby("Product Name")["Profit"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
+
+fig = px.bar(top_profit, x="Profit", y="Product Name", orientation="h")
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------
+# CATEGORY SALES PIE (OPTIONAL BUT IMPORTANT)
+# ---------------------------
+st.subheader("Category Wise Sales")
+
+cat_sales = filtered_df.groupby("Category")["Sales"].sum().reset_index()
+
+fig = px.pie(cat_sales, names="Category", values="Sales")
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------
+# DISCOUNT VS PROFIT
 # ---------------------------
 st.subheader("Discount vs Profit Relationship")
 
@@ -104,13 +152,13 @@ fig = px.scatter(filtered_df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Model Load
+# LOAD MODEL (SAFE)
 # ---------------------------
 model = joblib.load("profit_model.pkl")
 columns = joblib.load("model_columns.pkl")
 
 # ---------------------------
-# Prediction Section
+# PREDICTION
 # ---------------------------
 st.subheader("Profit Prediction System")
 
